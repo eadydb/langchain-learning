@@ -1,49 +1,117 @@
-# Ollama Function Calling Demo
+# LangChain Learning Project
 
-This demo shows how to use Ollama with the Deepseek-r1 model to implement function calling capabilities.
+A demonstration project showcasing how to build intelligent conversational systems using LangChain.
 
-## Prerequisites
+## Features
 
-1. Make sure you have access to a remote Ollama server or run Ollama locally
-2. The remote Ollama server should have the Deepseek-r1 70B model available
+1. **Weather Query**
+   - Query weather for specified cities
+   - Support temperature unit conversion (Celsius/Fahrenheit)
 
-## Setup
+2. **Calculator**
+   - Basic arithmetic operations
+   - Natural language understanding for calculations
 
-1. Create a new conda environment:
-   ```bash
-   conda create -n ollama-demo python=3.10
-   conda activate ollama-demo
-   ```
+3. **Order Management**
+   - Query user's historical orders
+   - Filter by time range
 
-2. Install the required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
+4. **Package Customization**
+   - Custom package creation
+   - Flexible feature combinations
+   - Dynamic pricing
 
-## Configuration
+5. **QPS Monitoring**
+   - Real-time QPS data simulation
+   - View QPS trends for specified time windows
+   - Considers time periodicity, random fluctuations, and burst traffic
+   - Returns 10 data points with smoothed curves
 
-By default, the demo connects to Ollama at `http://localhost:11434`. To use a different Ollama server:
+## Quick Start
 
-1. Modify the `base_url` parameter in `ollama_function_demo.py` to point to your Ollama server:
-   ```python
-   llm = Ollama(
-       model="deepseek-r1:70b",
-       base_url="http://your-ollama-server:11434",
-       callbacks=[StreamingStdOutCallbackHandler()],
-       temperature=0
-   )
-   ```
+1. Clone the project
+```bash
+git clone https://github.com/eadydb/langchain-learning.git
+cd langchain-learning
+```
 
-## Running the Demo
+2. Install dependencies
+```bash
+conda create -n llm-demo python=3.10
+conda activate llm-demo
+pip install -r requirements.txt
+```
 
-1. Make sure your Ollama server is accessible
-2. Run the demo script:
-   ```bash
-   python ollama_function_demo.py
-   ```
+3. Run the demo
+```bash
+python -m src.demo.main
+```
 
-The demo includes two example functions:
-- `get_current_weather`: A mock weather function that returns weather data for a given location
-- `calculator`: A basic arithmetic calculator that can perform addition, subtraction, multiplication, and division
+## Usage Examples
 
-The script will process example queries and demonstrate how the model can understand when to call these functions and with what parameters.
+1. Weather Query
+```
+What's the weather like in Beijing?
+```
+
+2. Calculator
+```
+Calculate 23 times 45
+```
+
+3. Order Query
+```
+Show me user 12345's orders from the last 3 months
+```
+
+4. Package Customization
+```
+Create a 3-month premium package with data analytics and expert consultation
+```
+
+5. QPS Monitoring
+```
+Calculate QPS for the last 5 minutes
+```
+
+## Project Structure
+
+```
+src/demo/
+├── main.py              # Main program entry
+├── core/
+│   └── services.py      # Core service definitions
+├── services/
+│   ├── calculator_service.py  # Calculator service
+│   ├── order_service.py       # Order service
+│   ├── package_service.py     # Package service
+│   └── qps_service.py         # QPS monitoring service
+├── models/
+│   └── qps.py                 # QPS data models
+└── schemas/
+    └── base.py               # Base data models
+```
+
+## Tech Stack
+
+- Python 3.10+
+- LangChain
+- Numpy
+- FastAPI (API support)
+- Pydantic (Data validation)
+
+## Development Roadmap
+
+- [ ] Add more data visualization features
+- [ ] Support more complex natural language understanding
+- [ ] Optimize QPS monitoring performance and accuracy
+- [ ] Add unit tests
+- [ ] Support more language models
+
+## Contributing
+
+Issues and Pull Requests are welcome!
+
+## License
+
+MIT License
