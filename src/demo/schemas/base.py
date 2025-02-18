@@ -49,8 +49,8 @@ class Package(BaseModel):
     id: str
     name: str
     price: float
+    duration: int
     features: List[str]
-    duration: str
 
 
 class PackageResponse(BaseModel):

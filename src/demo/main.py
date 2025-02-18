@@ -5,13 +5,11 @@ from langchain_community.llms import Ollama
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-from .core.services import (
-    WeatherService,
-    CalculatorService,
-    OrderService,
-    PackageService,
-    QPSService
-)
+from .services.calculator_service import CalculatorService
+from .services.order_service import OrderService
+from .services.package_service import PackageService
+from .services.qps_service import QPSService
+from .services.weather_service import WeatherService
 from .utils.helpers import extract_json_from_response
 from .schemas.base import (
     WeatherResponse,
@@ -93,17 +91,18 @@ def record_request():
 FUNCTIONS = [
     {
         "name": "get_current_weather",
-        "description": "Get the current weather in a given location",
+        "description": "获取指定城市的天气信息",
         "parameters": {
             "type": "object",
             "properties": {
                 "location": {
                     "type": "string",
-                    "description": "The city and state, e.g. San Francisco, CA"
+                    "description": "城市名称，如：Beijing, Shanghai"
                 },
                 "unit": {
                     "type": "string",
-                    "enum": ["celsius", "fahrenheit"]
+                    "enum": ["celsius", "fahrenheit"],
+                    "description": "温度单位"
                 }
             },
             "required": ["location"]
@@ -111,41 +110,36 @@ FUNCTIONS = [
     },
     {
         "name": "calculator",
-        "description": "Perform basic arithmetic operations",
+        "description": "执行基本的数学运算",
         "parameters": {
             "type": "object",
             "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["add", "subtract", "multiply", "divide"],
-                    "description": "The arithmetic operation to perform"
-                },
                 "x": {
                     "type": "number",
-                    "description": "The first number"
+                    "description": "第一个数"
                 },
                 "y": {
                     "type": "number",
-                    "description": "The second number"
+                    "description": "第二个数"
+                },
+                "operation": {
+                    "type": "string",
+                    "enum": ["加", "减", "乘", "除"],
+                    "description": "运算类型"
                 }
             },
-            "required": ["operation", "x", "y"]
+            "required": ["x", "y", "operation"]
         }
     },
     {
         "name": "get_recent_orders",
-        "description": "获取用户最近的订单记录",
+        "description": "获取用户最近的订单信息",
         "parameters": {
             "type": "object",
             "properties": {
                 "user_id": {
                     "type": "string",
                     "description": "用户ID"
-                },
-                "months": {
-                    "type": "integer",
-                    "description": "查询最近几个月的订单，默认为3个月",
-                    "default": 3
                 }
             },
             "required": ["user_id"]
@@ -153,7 +147,7 @@ FUNCTIONS = [
     },
     {
         "name": "create_custom_package",
-        "description": "创建自定义套餐并生成购买二维码",
+        "description": "创建自定义套餐",
         "parameters": {
             "type": "object",
             "properties": {
@@ -163,19 +157,18 @@ FUNCTIONS = [
                 },
                 "duration": {
                     "type": "integer",
-                    "description": "套餐时长（月），默认1个月",
-                    "default": 1
+                    "description": "套餐时长（月）"
                 },
                 "features": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
-                    "description": "套餐包含的功能列表，如果不提供会根据价格自动生成"
+                    "description": "套餐包含的功能列表"
                 },
                 "price": {
                     "type": "number",
-                    "description": "套餐价格，如果不提供会根据功能数量和时长自动计算"
+                    "description": "套餐价格"
                 }
             },
             "required": ["name"]
@@ -183,20 +176,21 @@ FUNCTIONS = [
     },
     {
         "name": "calculate_qps",
-        "description": "计算指定时间窗口内的QPS（每秒查询率）数据",
+        "description": "计算最近一段时间的QPS数据",
         "parameters": {
             "type": "object",
             "properties": {
                 "time_window_minutes": {
                     "type": "integer",
-                    "description": "需要查看的时间窗口（分钟）"
+                    "description": "时间窗口（分钟）"
                 },
                 "data_points": {
                     "type": "integer",
-                    "description": "返回的数据点数量"
+                    "description": "返回的数据点数量",
+                    "default": 10
                 }
             },
-            "required": []
+            "required": ["time_window_minutes"]
         }
     }
 ]
@@ -291,7 +285,14 @@ class FunctionCallingDemo:
         elif function_name == "create_custom_package":
             return self.package_service.create_custom_package(**parameters)
         elif function_name == "calculate_qps":
-            return self.qps_service.calculate_qps(**parameters)
+            result = self.qps_service.calculate_qps(**parameters)
+            print("\nQPS统计结果:")
+            print(f"状态: {result.status}")
+            print(f"消息: {result.message}")
+            print("\n时间点数据:")
+            for point in result.data:
+                print(f"时间: {point.timestamp.strftime('%Y-%m-%d %H:%M:%S')}, QPS: {point.qps_value:.2f}")
+            return result
         else:
             raise ValueError(f"Unknown function: {function_name}")
     
@@ -303,30 +304,29 @@ class FunctionCallingDemo:
             result: Function result to print.
         """
         if isinstance(result, WeatherResponse):
-            print("\n查询结果:")
+            print("查询结果:")
             print(f"城市: {result.location}")
             print(f"温度: {result.temperature}°{result.unit}")
             print(f"天气: {', '.join(result.forecast)}")
-        
+            
         elif isinstance(result, CalculationResponse):
-            print("\n计算结果:")
+            print("计算结果:")
             print(f"{result.x} {result.operation} {result.y} = {result.result}")
-        
+            
         elif isinstance(result, OrderResponse):
-            print(f"\n{result.user_id} 的订单查询结果:")
+            print(f"{result.user_id} 的订单查询结果:")
             print(f"查询期间: {result.period}")
             print(f"订单总数: {result.total_orders}")
             print("\n订单详情:")
             print("-" * 80)
-            print(f"{'订单号':<15} {'日期':<12} {'商品':<15} {'数量':<6} {'单价':>8} {'总价':>10} {'状态':<8}")
+            print(f"{'订单号':<15} {'日期':<30} {'商品':<15} {'数量':<10} {'单价':<10} {'总价':<10} {'状态':<10}")
             print("-" * 80)
             for order in result.orders:
-                print(f"{order.order_id:<15} {order.date:<12} {order.product:<15} "
-                      f"{order.quantity:<6} {order.price:>8} {order.total:>10} {order.status:<8}")
+                print(f"{order.order_id:<15} {order.date:<30} {order.product:<15} {order.quantity:<10} {order.price:<10.1f} {order.total:<10.1f} {order.status:<10}")
             print("-" * 80)
-        
+            
         elif isinstance(result, PackageResponse):
-            print("\n自定义套餐创建成功!")
+            print("自定义套餐创建成功!")
             print(f"套餐名称: {result.package.name}")
             print(f"套餐ID: {result.package.id}")
             print(f"时长: {result.package.duration}")
@@ -336,12 +336,28 @@ class FunctionCallingDemo:
                 print(f"- {feature}")
             print(f"\n二维码已生成: {result.qr_file}")
             print(f"支付链接: {result.payment_url}")
-        
+            
         elif isinstance(result, QPSResponse):
-            print(f"\n{result.message}")
-            print("\nQPS统计数据:")
-            for qps_data in result.data:
-                print(f"时间: {qps_data.timestamp.strftime('%Y-%m-%d %H:%M:%S')}, QPS: {qps_data.qps_value}")
+            print("\nQPS统计结果:")
+            print(f"状态: {result.status}")
+            print(f"消息: {result.message}")
+            print("\n时间点数据:")
+            for point in result.data:
+                print(f"时间: {point.timestamp.strftime('%Y-%m-%d %H:%M:%S')}, QPS: {point.qps_value:.2f}")
+    
+    def print_qps_result(self, result: Dict[str, Any]):
+        """
+        Print QPS result in a formatted way.
+        
+        Args:
+            result: QPS result to print.
+        """
+        print("\nQPS统计结果:")
+        print(f"状态: {result.status}")
+        print(f"消息: {result.message}")
+        print("\n时间点数据:")
+        for point in result.data:
+            print(f"时间: {point.timestamp.strftime('%Y-%m-%d %H:%M:%S')}, QPS: {point.qps_value:.2f}")
 
 
 def main():
